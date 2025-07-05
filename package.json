@@ -1,0 +1,42 @@
+{
+  "name": "formula-arithmetic",
+  "version": "1.0.0",
+  "description": "Lightweight JS arithmetic formula engine (ADD, MULTIPLY, nested functions, BODMAS)",
+  "main": "dist/formulae.cjs.js",
+  "module": "dist/formulae.esm.js",
+  "browser": "dist/formulae.min.js",
+  "scripts": {
+    "build:cjs": "rollup -c --format cjs --file dist/formulae.cjs.js",
+    "build:esm": "rollup -c --format esm --file dist/formulae.esm.js",
+    "build:umd": "rollup -c --format umd --name FormulaArithmetic --file dist/formulae.min.js",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:umd",
+    "minify": "terser dist/formulae.min.js -c -m -o dist/formulae.min.js",
+    "test": "jest",
+    "prerelease": "npm test && npm run build && npm run minify",
+    "release": "standard-version"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/you/formula-arithmetic.git"
+  },
+  "keywords": [
+    "formula",
+    "arithmetic",
+    "BODMAS",
+    "RPN",
+    "javascript"
+  ],
+  "author": "Varun Reddy Param",
+  "license": "CC BY-ND",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "jest": "^29.7.0",
+    "rollup": "^3.0.0",
+    "standard-version": "^9.0.0",
+    "terser": "^5.0.0"
+  }
+}
