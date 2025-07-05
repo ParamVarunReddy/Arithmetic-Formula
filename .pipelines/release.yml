@@ -1,0 +1,96 @@
+trigger:
+  branches:
+    include:
+    - main
+
+pr:
+  branches:
+    include:
+    - main
+
+variables:
+  NODE_VERSION: '18.x'
+
+stages:
+
+#───────────────────────────────────────────────────────────────────────────────
+# Stage 1: Build & Test
+#───────────────────────────────────────────────────────────────────────────────
+- stage: BuildAndTest
+  displayName: Build & Test
+  jobs:
+  - job: Build
+    displayName: Install · Test · Build
+    pool: 'default'
+    steps:
+    - task: NodeTool@0
+      displayName: Use Node.js $(NODE_VERSION)
+      inputs:
+        versionSpec: '$(NODE_VERSION)'
+
+    - script: npm install --verbose
+      displayName: npm install
+
+    - script: npm test
+      displayName: npm test
+
+    - script: |
+        npm run build
+        npm run minify
+      displayName: npm run build & minify
+
+    # Verify the dist folder contains the expected files
+    - script: |
+        echo "Contents of dist folder:"
+        ls -la dist/
+        echo "Checking for required files:"
+        test -f dist/formulae.cjs.js && echo "✓ formulae.cjs.js exists" || echo "✗ formulae.cjs.js missing"
+        test -f dist/formulae.esm.js && echo "✓ formulae.esm.js exists" || echo "✗ formulae.esm.js missing"
+        test -f dist/formulae.min.js && echo "✓ formulae.min.js exists" || echo "✗ formulae.min.js missing"
+      displayName: Verify dist files
+
+    - publish: 'dist'
+      artifact: 'dist'
+
+    - publish: 'dist'
+      artifact: 'dist'
+
+#───────────────────────────────────────────────────────────────────────────────
+# Stage 2: Release & Publish
+#───────────────────────────────────────────────────────────────────────────────
+- stage: Release
+  displayName: Release & Publish to npm
+  dependsOn: BuildAndTest
+  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
+  jobs:
+  - job: Publish
+    displayName: Publish package
+    pool: 'default'
+    steps:
+    - download: current
+      artifact: dist
+      displayName: Download dist artifact
+
+    - task: NodeTool@0
+      displayName: Use Node.js $(NODE_VERSION)
+      inputs:
+        versionSpec: '$(NODE_VERSION)'
+
+    # Copy the built dist files to workspace
+    - task: CopyFiles@2
+      displayName: Copy dist files to workspace
+      inputs:
+        SourceFolder: '$(Pipeline.Workspace)/dist'
+        Contents: '**/*'
+        TargetFolder: '$(System.DefaultWorkingDirectory)/dist'
+
+    # Only install dependencies needed for publishing
+    - script: npm install --production
+      displayName: npm install (production only)
+
+    - script: |
+        echo "//registry.npmjs.org/:_authToken=$(NPM_TOKEN)" > ~/.npmrc
+        npm publish --access public
+      displayName: Publish to npm
+      env:
+        NPM_TOKEN: $(NPM_TOKEN)
