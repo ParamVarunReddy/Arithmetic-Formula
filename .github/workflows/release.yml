@@ -1,96 +1,64 @@
-trigger:
-  branches:
-    include:
-    - main
+name: CI & Release
 
-pr:
-  branches:
-    include:
-    - main
+on:
+  push:
+    branches: [ main ]
+    tags: [ '*' ]
+  pull_request:
+    branches: [ main ]
 
-variables:
-  NODE_VERSION: '18.x'
-
-stages:
-
-#───────────────────────────────────────────────────────────────────────────────
-# Stage 1: Build & Test
-#───────────────────────────────────────────────────────────────────────────────
-- stage: BuildAndTest
-  displayName: Build & Test
-  jobs:
-  - job: Build
-    displayName: Install · Test · Build
-    pool: 'default'
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
     steps:
-    - task: NodeTool@0
-      displayName: Use Node.js $(NODE_VERSION)
-      inputs:
-        versionSpec: '$(NODE_VERSION)'
-
-    - script: npm install --verbose
-      displayName: npm install
-
-    - script: npm test
-      displayName: npm test
-
-    - script: |
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+    - name: Install dependencies
+      run: npm install --verbose
+    - name: Run tests
+      run: npm test
+    - name: Build & Minify
+      run: |
         npm run build
         npm run minify
-      displayName: npm run build & minify
-
-    # Verify the dist folder contains the expected files
-    - script: |
+    - name: Verify dist files
+      run: |
         echo "Contents of dist folder:"
         ls -la dist/
         echo "Checking for required files:"
         test -f dist/formulae.cjs.js && echo "✓ formulae.cjs.js exists" || echo "✗ formulae.cjs.js missing"
         test -f dist/formulae.esm.js && echo "✓ formulae.esm.js exists" || echo "✗ formulae.esm.js missing"
         test -f dist/formulae.min.js && echo "✓ formulae.min.js exists" || echo "✗ formulae.min.js missing"
-      displayName: Verify dist files
+    - name: Upload dist artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist
 
-    - publish: 'dist'
-      artifact: 'dist'
-
-    - publish: 'dist'
-      artifact: 'dist'
-
-#───────────────────────────────────────────────────────────────────────────────
-# Stage 2: Release & Publish
-#───────────────────────────────────────────────────────────────────────────────
-- stage: Release
-  displayName: Release & Publish to npm
-  dependsOn: BuildAndTest
-  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
-  jobs:
-  - job: Publish
-    displayName: Publish package
-    pool: 'default'
+  release:
+    name: Release & Publish to npm
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - download: current
-      artifact: dist
-      displayName: Download dist artifact
-
-    - task: NodeTool@0
-      displayName: Use Node.js $(NODE_VERSION)
-      inputs:
-        versionSpec: '$(NODE_VERSION)'
-
-    # Copy the built dist files to workspace
-    - task: CopyFiles@2
-      displayName: Copy dist files to workspace
-      inputs:
-        SourceFolder: '$(Pipeline.Workspace)/dist'
-        Contents: '**/*'
-        TargetFolder: '$(System.DefaultWorkingDirectory)/dist'
-
-    # Only install dependencies needed for publishing
-    - script: npm install --production
-      displayName: npm install (production only)
-
-    - script: |
-        echo "//registry.npmjs.org/:_authToken=$(NPM_TOKEN)" > ~/.npmrc
-        npm publish --access public
-      displayName: Publish to npm
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+        registry-url: 'https://registry.npmjs.org'
+    - name: Download dist artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist
+    - name: Install production dependencies
+      run: npm install --production
+    - name: Publish to npm
       env:
-        NPM_TOKEN: $(NPM_TOKEN)
+        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+        npm publish --access public
