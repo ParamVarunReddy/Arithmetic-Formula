@@ -1,6 +1,7 @@
 {
   "name": "formula-arithmetic",
   "version": "1.0.0",
+  "type": "module",
   "description": "Lightweight JS arithmetic formula engine (ADD, MULTIPLY, nested functions, BODMAS)",
   "main": "dist/formulae.cjs.js",
   "module": "dist/formulae.esm.js",
@@ -30,7 +31,7 @@
     "javascript"
   ],
   "author": "Varun Reddy Param",
-  "license": "CC BY-ND",
+  "license": "MIT",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.0",
     "@rollup/plugin-node-resolve": "^15.0.0",
