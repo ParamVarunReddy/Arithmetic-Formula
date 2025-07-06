@@ -33,7 +33,7 @@ jobs:
         test -f dist/formulae.esm.js && echo "✓ formulae.esm.js exists" || echo "✗ formulae.esm.js missing"
         test -f dist/formulae.min.js && echo "✓ formulae.min.js exists" || echo "✗ formulae.min.js missing"
     - name: Upload dist artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dist
         path: dist
@@ -50,7 +50,7 @@ jobs:
         node-version: 18.x
         registry-url: 'https://registry.npmjs.org'
     - name: Download dist artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: dist
         path: dist
